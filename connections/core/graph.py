@@ -76,7 +76,7 @@ class Graph(ABC):
 
     def add_node(
             self, identifier: Identifier = None, replace: bool = False,
-            **kwargs) -> Identifier:
+            clear_calculated_values: bool = True, **kwargs) -> Identifier:
         """Adds node to the graph
 
         Parameters
@@ -102,12 +102,15 @@ class Graph(ABC):
 
         self.nodes[identifier] = kwargs
 
-        # self.clear_degree()
-        # self.clear_neighbors()
+        if clear_calculated_values is True:
+            self.clear_degree()
+            self.clear_neighbors()
 
         return identifier
 
-    def del_node(self, identifier: Identifier) -> None:
+    def del_node(
+            self, identifier: Identifier,
+            clear_calculated_values: bool = True) -> None:
         """Removes node from the graph
 
         Parameters
@@ -117,8 +120,9 @@ class Graph(ABC):
         """
         del self.nodes[identifier]
 
-        self.clear_degree()
-        self.clear_neighbors()
+        if clear_calculated_values is True:
+            self.clear_degree()
+            self.clear_neighbors()
 
     def clear_nodes(self) -> None:
         """Removes all nodes from the graph"""
@@ -129,13 +133,15 @@ class Graph(ABC):
             self, node_l: Identifier, node_r: Identifier,
             identifier: Identifier = None, replace: bool = False,
             add_non_existent_incident_nodes: bool = True,
+            clear_calculated_nodes_values: bool = True,
             **kwargs) -> Identifier:
         """Adds an edge and its incident nodes to the graph"""
 
     @abstractmethod
     def del_edge(
             self, node_l: Identifier, node_r: Identifier,
-            identifier: Identifier) -> None:
+            identifier: Identifier,
+            clear_calculated_nodes_values: bool = True) -> None:
         """Removes an edge from the graph"""
 
     def clear_edges(self) -> None:
@@ -179,15 +185,18 @@ class Graph(ABC):
                 for edge_id, edge_kwargs in edges.items():
                     subgraph.add_edge(
                         node_l=node_l, node_r=node_r, identifier=edge_id,
-                        add_non_existent_incident_nodes=False, **edge_kwargs)
+                        add_non_existent_incident_nodes=False,
+                        clear_calculated_nodes_values=False, **edge_kwargs)
                     subgraph.add_node(
-                        identifier=node_l, replace=True, **self.nodes[node_l])
+                        identifier=node_l, replace=True, clear_calculated_values=False,
+                        **self.nodes[node_l])
                     subgraph.add_node(
-                        identifier=node_r, replace=True, **self.nodes[node_r])
+                        identifier=node_r, replace=True, clear_calculated_values=False,
+                        **self.nodes[node_r])
 
-        if any({value.get('degree') for value in subgraph.nodes.values()}) is not None:
+        if any(True for value in subgraph.nodes.values() if value.get('degree') is not None):
             subgraph.calc_degree()
-        if any({value.get('neighbors') for value in subgraph.nodes.values()}) is not None:
+        if any(True for value in subgraph.nodes.values() if value.get('neighbors') is not None):
             subgraph.calc_neighbors()
 
         return subgraph
@@ -208,9 +217,26 @@ class Graph(ABC):
 
     @abstractmethod
     def calc_neighbors(self):
-        """Find neighbors for each node in graph"""
+        """Finds neighbors for each node in graph"""
 
     def clear_neighbors(self):
         """Set neighbors value to None for each node in graph"""
         for node in self.nodes.keys():
             self.nodes[node]['neighbors'] = None
+
+    def find_loops(self):
+        """Finds loops in a graph (when an edge incident to one node)"""
+        for (node_l, node_r) in self.edges.keys():
+            if node_l == node_r:
+                yield (node_l, node_r)
+
+    def describe(self):
+        """Returns information about graph"""
+        self.calc_degree()
+        self.calc_neighbors()
+        return {
+            'type': self.__class__,
+            'multi_graph': any(True for values in self.edges.values() if len(values) > 1),
+            'pseudo_graph': any(self.find_loops()),
+            'complete_graph': (len(self.nodes) * (len(self.nodes) - 1)) / 2 == len(self.edges),
+        }

@@ -51,6 +51,7 @@ class DirectedGraph(Graph):
             self, node_l: Identifier, node_r: Identifier,
             identifier: Identifier = None, replace: bool = False,
             add_non_existent_incident_nodes: bool = True,
+            clear_calculated_nodes_values: bool = True,
             **kwargs) -> Identifier:
         """Adds an edge and its incident nodes to the graph
 
@@ -98,14 +99,16 @@ class DirectedGraph(Graph):
             except NodeAlreadyExistsException:
                 pass
 
-        # self.clear_degree()
-        # self.clear_neighbors()
+        if clear_calculated_nodes_values is True:
+            self.clear_degree()
+            self.clear_neighbors()
 
         return identifier
 
     def del_edge(
             self, node_l: Identifier, node_r: Identifier,
-            identifier: Identifier = None) -> None:
+            identifier: Identifier = None,
+            clear_calculated_nodes_values: bool = True) -> None:
         """Removes an edge from the graph
 
         Parameters
@@ -126,11 +129,12 @@ class DirectedGraph(Graph):
         else:
             del self.edges[edge][identifier]
 
-        self.clear_degree()
-        self.clear_neighbors()
+        if clear_calculated_nodes_values is True:
+            self.clear_degree()
+            self.clear_neighbors()
 
     def calc_neighbors(self):
-        """Find neighbors for each node in graph"""
+        """Finds neighbors for each node in graph"""
         for node in self.nodes.keys():
             self.nodes[node]['neighbors'] = set()
 
