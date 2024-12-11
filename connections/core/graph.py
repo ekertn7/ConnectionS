@@ -1,6 +1,6 @@
 """Graph implementation"""
 
-from typing import Iterable
+from typing import Iterable, Dict
 from abc import ABC, abstractmethod
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
@@ -9,41 +9,31 @@ from connections.exceptions.object_already_exists import NodeAlreadyExistsExcept
 
 
 class Graph(ABC):
-    """Graph implementation
+    """Graph implementation"""
 
-    All graphs supports multi edges
+    def _nodes_validation(self, nodes) -> Nodes:
+        """Validation function for nodes"""
+        def _check_node_keys_type() -> bool:
+            """Checks that type of 'Elizabeth' is Identifier"""
+            if not all(isinstance(node, Identifier) for node in nodes):
+                raise Exception()
 
-    Nodes format
-    ------------
-    nodes = {
-        'bc4f32b941': {'name': 'Alex', 'age': 19, 'sex': True},
-        '9cbdbedb44': {'name': 'Bella', 'age': 20, 'sex': False},
-        '488bc1b9c1': {'name': 'Clare', 'age': 18, 'sex': False},
-    }
+        def _check_node_values_type() -> bool:
+            """Checks that type of {'age': 19, 'sex': False} is dict"""
+            if not all(isinstance(values, Dict) for values in nodes.values()):
+                raise Exception()
 
-    Edges format
-    ------------
-    edges = {
-        ('bc4f32b941', '9cbdbedb44'): {
-            'ac89bf9b56': {'amount': 1400, 'date': '2024-02-12'},
-            'c2484a9d76': {'amount': 2900, 'date': '2024-01-18'},
-            '783b2810af': {'amount': 3400, 'date': '2024-03-05'},
-        },
-        ('bc4f32b941', '488bc1b9c1'): {
-            '2c7dfd0a44': {'amount': 5300, 'date': '2024-03-16'},
-            '347c595307': {'amount': 2200, 'date': '2024-02-19'},
-        },
-        ('488bc1b9c1', '9cbdbedb44'): {
-            '0650ba3e6e': {'amount': 4100, 'date': '2024-02-24'},
-        },
-    }
-    """
-    def __init__(self, nodes: Nodes = None, edges: Edges = None):
-        self.__nodes = nodes or {}
-        self.__edges = edges or {}
-
-        self.clear_degree()
-        self.clear_neighbors()
+        if isinstance(nodes, Dict):
+            _check_node_keys_type()
+            _check_node_values_type()
+            for identifier, values in nodes.items():
+                self.add_node(
+                    identifier=identifier, replace=False,
+                    clear_calculated_values=False, **values)
+        if isinstance(nodes, Iterable):
+            _check_node_keys_type()
+            return {node: {} for node in nodes}
+        raise TypeError()
 
     @property
     def nodes(self):
@@ -55,15 +45,35 @@ class Graph(ABC):
         """Nodes setter"""
         self.__nodes = new_nodes
 
-    @property
-    def edges(self):
-        """Edges getter"""
-        return self.__edges
+    @nodes.deleter
+    def nodes(self):
+        """Nodes deleter"""
+        raise Exception('LOL')
 
-    @edges.setter
-    def edges(self, new_edges: Edges):
-        """Edges setter"""
-        self.__edges = new_edges
+    def __init__(self, nodes: Nodes = None, edges: Edges = None):
+        self.__nodes = {}
+        self._nodes_validation(nodes)
+        self.__edges = edges or {}
+
+        self.clear_degree()
+        self.clear_neighbors()
+
+    # @property
+    # def edges(self):
+    #     """Edges getter"""
+    #     return self.__edges
+
+    # @edges.setter
+    # def edges(self, new_edges: Edges):
+    #     """Edges setter"""
+    #     for (node_l, node_r), edge in new_edges.items():
+    #         for identifier, values in edge.items():
+    #             print(node_l, node_r, identifier, values)
+    #             self.add_edge(
+    #                 node_l=node_l, node_r=node_r, identifier=identifier,
+    #                 replace=False, add_non_existent_incident_nodes=True,
+    #                 clear_calculated_nodes_values=False, **values)
+    #     # self.__edges = new_edges
 
     def __eq__(self, other):
         return type(self) is type(other) and \
@@ -89,6 +99,13 @@ class Graph(ABC):
             Replace existing node
                 - False (default): raise NodeAlreadyExistsException if node exists
                 - True: replace existing node by new
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when adding a small number of nodes
+                - False: do nothing (best performance)
+                    * use it when adding a large number of nodes,
+                      then recalculate calculated values
 
         Returns
         -------
@@ -96,6 +113,9 @@ class Graph(ABC):
         """
         if identifier is None:
             identifier = generate_identifier()
+        else:
+            if not isinstance(identifier, Identifier):
+                raise TypeError()
 
         if replace is False and self.nodes.get(identifier) is not None:
             raise NodeAlreadyExistsException()
@@ -117,6 +137,13 @@ class Graph(ABC):
         ----------
         identifier
             Node identifier
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when removing a small number of nodes
+                - False: do nothing (best performance)
+                    * use it when removing a large number of nodes,
+                      then recalculate calculated values
         """
         del self.nodes[identifier]
 
@@ -194,9 +221,9 @@ class Graph(ABC):
                         identifier=node_r, replace=True, clear_calculated_values=False,
                         **self.nodes[node_r])
 
-        if any(True for value in subgraph.nodes.values() if value.get('degree') is not None):
+        if any(value.get('degree') is not None for value in subgraph.nodes.values()):
             subgraph.calc_degree()
-        if any(True for value in subgraph.nodes.values() if value.get('neighbors') is not None):
+        if any(value.get('neighbors') is not None for value in subgraph.nodes.values()):
             subgraph.calc_neighbors()
 
         return subgraph
@@ -230,13 +257,28 @@ class Graph(ABC):
             if node_l == node_r:
                 yield (node_l, node_r)
 
+    def is_complete(self):
+        """Checks that graph is complete"""
+        edges_lenght = len({
+            (node_l, node_r) for (node_l, node_r) in self.edges.keys()
+            if node_l != node_r})
+        max_edges_legth = (len(self.nodes) * (len(self.nodes) - 1)) / 2
+        return edges_lenght == max_edges_legth
+
+    def is_connected(self):
+        """Checks that graph is conncted"""
+        return NotImplemented
+
     def describe(self):
         """Returns information about graph"""
         self.calc_degree()
         self.calc_neighbors()
         return {
             'type': self.__class__,
-            'multi_graph': any(True for values in self.edges.values() if len(values) > 1),
+            'number_of_nodes': len(self.nodes),
+            'number_of_edges': len(self.edges),
+            'multi_graph': any(len(values) > 1 for values in self.edges.values()),
             'pseudo_graph': any(self.find_loops()),
-            'complete_graph': (len(self.nodes) * (len(self.nodes) - 1)) / 2 == len(self.edges),
+            'connected_graph': self.is_connected(),
+            'complete_graph': self.is_complete(),
         }

@@ -1,14 +1,15 @@
 """UndirectedGraph implementation"""
+
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
 from connections.core.graph import Graph
 from connections.exceptions.object_already_exists import (
-    NodeAlreadyExistsException, EdgeAlreadyExistsException
-)
+    NodeAlreadyExistsException, EdgeAlreadyExistsException)
 
 
 class UndirectedGraph(Graph):
+
     """UndirectedGraph implementation
 
     Nodes representation
@@ -42,6 +43,7 @@ class UndirectedGraph(Graph):
             },
         }
     """
+
     def __init__(self, nodes: Nodes = None, edges: Edges = None):
         super().__init__(nodes=nodes, edges=edges)
 
@@ -65,12 +67,19 @@ class UndirectedGraph(Graph):
                 - ...: selected identifier is assigned
         replace, optional
             Replace existing edge
-                - False (default): raise EdgeAlreadyExistsException if edge exists
                 - True: replace existing edge by new
+                - False (default): raise EdgeAlreadyExistsException if edge exists
         add_non_existent_incident_nodes, optional
             Add non-existent incident nodes
                 - True (default): add non-existent incident nodes to the graph
                 - False: do nothing
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when adding a small number of edges
+                - False: do nothing (best performance)
+                    * use it when adding a large number of edges,
+                      then recalculate calculated values
 
         Returns
         -------
@@ -119,6 +128,13 @@ class UndirectedGraph(Graph):
             Edge identifier
                 - None (default): removes all edges incident with left ant right nodes
                 - ...: removes selected edge
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when removing a small number of edges
+                - False: do nothing (best performance)
+                    * use it when removing a large number of edges,
+                      then recalculate calculated values
         """
         edge = tuple(sorted((node_l, node_r)))
 

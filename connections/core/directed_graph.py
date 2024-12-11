@@ -1,4 +1,5 @@
 """DirectedGraph implementation"""
+
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
@@ -9,6 +10,7 @@ from connections.exceptions.object_already_exists import (
 
 
 class DirectedGraph(Graph):
+
     """DirectedGraph implementation
 
     Nodes representation
@@ -44,6 +46,9 @@ class DirectedGraph(Graph):
             },
         }
     """
+
+    # edges = DirectedEdgesDescriptor(nodes)
+
     def __init__(self, nodes: Nodes = None, edges: Edges = None):
         super().__init__(nodes=nodes, edges=edges)
 
@@ -67,12 +72,19 @@ class DirectedGraph(Graph):
                 - ...: selected identifier is assigned
         replace, optional
             Replace existing edge
-                - False (default): raise EdgeAlreadyExistsException if edge exists
                 - True: replace existing edge by new
+                - False (default): raise EdgeAlreadyExistsException if edge exists
         add_non_existent_incident_nodes, optional
             Add non-existent incident nodes
                 - True (default): add non-existent incident nodes to the graph
                 - False: do nothing
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when adding a small number of edges
+                - False: do nothing (best performance)
+                    * use it when adding a large number of edges,
+                      then recalculate calculated values
 
         Returns
         -------
@@ -121,6 +133,13 @@ class DirectedGraph(Graph):
             Edge identifier
                 - None (default): removes all edges incident with source and target nodes
                 - ...: removes selected edge
+        clear_calculated_nodes_values, optional
+            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): clear calculated nodes values (worst performance)
+                    * use it when removing a small number of edges
+                - False: do nothing (best performance)
+                    * use it when removing a large number of edges,
+                      then recalculate calculated values
         """
         edge = (node_l, node_r)
 
