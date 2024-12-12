@@ -38,21 +38,7 @@ Edges: TypeAlias = Dict[
 #     def directed_edges_validation(edges, nodes) -> Edges:
 #         """Validation function for directed edges"""
 
-#         def _check_edge_keys_type():
-#             """Checks that type of ('Sebastian', 'Elizabeth') is tuple"""
-#             return all(isinstance(edge, Tuple) for edge in edges)
-
-#         def _check_edge_keys_len():
-#             """Checks that len of ('Sebastian', 'Elizabeth') == 2"""
-#             return all(len(edge) == 2 for edge in edges)
-
-#         def _check_edge_keys_items_type():
-#             """Checks that type of 'Sebastian' is Identifier"""
-#             return all(
-#                 isinstance(node_l, Identifier) and isinstance(node_r, Identifier)
-#                 for (node_l, node_r) in edges)
-
-#         def _check_edge_keys_items_in_nodes(nodes):
+#         def _check_edge_keys_items_in_nodes(nodes):  нужно поменять на автоматическое добавление нод
 #             """Checks that 'Sebastian' and 'Elizabeth' in nodes"""
 #             return all(
 #                 (node_l in nodes) and (node_r in nodes)

@@ -36,19 +36,19 @@ class Graph(ABC):
     def _nodes_validation(self, nodes) -> Nodes:
         """Validation function for nodes"""
 
-        def check_nodes_identifier_type() -> bool:
+        def check_nodes_identifier_type() -> None:
             """Checks that type of nodes identifier is Identifier"""
             if not all(isinstance(node, Identifier) for node in nodes):
                 raise Exception('WrongNodesIdentifierTypeException')
 
-        def check_nodes_identifier_duplicate() -> bool:
+        def check_nodes_identifier_duplicate() -> None:
             """Checks that nodes identifier is not duplicate"""
             if isinstance(nodes, Set):
                 return
             if not len(nodes) == len(set(nodes)):
                 raise Exception('DuplicateNodesIdentifierException')
 
-        def check_nodes_value_type() -> bool:
+        def check_nodes_value_type() -> None:
             """Checks that type of nodes value is dict"""
             if not all(isinstance(values, Dict) for values in nodes.values()):
                 raise Exception('WrongNodesValueTypeException')
@@ -57,12 +57,12 @@ class Graph(ABC):
             return {}
 
         if isinstance(nodes, Dict):
-            _check_node_keys_type()
-            _check_node_values_type()
+            check_nodes_identifier_type()
+            check_nodes_value_type()
             return nodes
         if isinstance(nodes, Iterable):
-            _check_node_keys_type()
-            _check_node_keys_duplicates()
+            check_nodes_identifier_type()
+            check_nodes_identifier_duplicate()
             return {node: {} for node in nodes}
         raise Exception('WrongNodesTypeException')
 

@@ -53,23 +53,51 @@ class DirectedGraph(Graph):
     def _edges_validation(self, edges) -> Edges:
         """Validation function for directed edges"""
 
-        def check_edges_key_type():
+        def check_edges_key_type() -> None:
             """Checks that type of edges key is tuple"""
             if not all(isinstance(edge, Tuple) for edge in edges):
                 raise Exception('WrongEdgesKeyTypeException')
 
-        def check_nodes_identifier_type() -> bool:
-            pass
+        def check_edges_key_nodes_identifier_type() -> None:
+            if not all(
+                    isinstance(node_l, Identifier) and isinstance(node_r, Identifier)
+                    for (node_l, node_r) in edges):
+                raise Exception('WrongEdgesKeyNodesIdentifierTypeException')
 
-        def check_edges_key_ken() -> bool:
-            pass
+        def check_edges_key_len() -> None:
+            """Checks that length of edges key == 2"""
+            if not all(len(edge) == 2 for edge in edges):
+                raise Exception('WrongEdgesKeyLengthException')
+
+        def check_edges_value_type() -> None:
+            """Checks that type of edges value is dict"""
+            if not all(isinstance(values, Dict) for values in edges.values()):
+                raise Exception('WrongEdgesValueTypeException')
+
+        def add_non_existent_incident_nodes() -> None:
+            new_nodes = {node_l for (node_l, _) in edges} | {node_r for (_, node_r) in edges}
+            existent_nodes = set(self.nodes)
+            non_existent_nodes = new_nodes - existent_nodes
+            for identifier in non_existent_nodes:
+                self.add_node(identifier=identifier, clear_calculated_values=False)
 
         if edges is None:
             return {}
 
         if isinstance(edges, Dict):
+            check_edges_key_type()
+            check_edges_key_len()
+            check_edges_key_nodes_identifier_type()
+            check_edges_value_type()
+
+            add_non_existent_incident_nodes()
             return edges
         if isinstance(edges, Iterable):
+            check_edges_key_type()
+            check_edges_key_len()
+            check_edges_key_nodes_identifier_type()
+
+            add_non_existent_incident_nodes()
             return {edge: {generate_identifier(): {}} for edge in edges}
         raise Exception('WrongEdgesTypeException')
 
