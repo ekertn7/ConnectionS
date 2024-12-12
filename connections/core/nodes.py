@@ -1,6 +1,6 @@
-"""Type alias and descriptor for nodes"""
+"""Type alias for nodes"""
 
-from typing import TypeAlias, Any, Dict, Iterable
+from typing import TypeAlias, Any, Dict
 from connections.core.identifier import Identifier
 
 
@@ -10,37 +10,32 @@ Nodes: TypeAlias = Dict[Identifier, Any]
 # class NodesDescriptor:
 #     """Nodes descriptor"""
 
-#     @staticmethod
-#     def nodes_validation(nodes) -> Nodes:
-#         """Validation function for nodes
+#     # def __init__(self):
+#     #     self.result = {}
 
-#         Nodes representation is a dict with:
-#             - keys: node identifier
-#             - values: node attributes
+#     # def add_node(self, identifier: Identifier, **kwargs):
+#     #     """Adds node to result"""
+#     #     self.result[identifier] = kwargs
 
-#         Nodes representation example:
-#             {
-#                 'Elizabeth': {'age': 19, 'sex': False},
-#                 'Sebastian': {'age': 21, 'sex': True},
-#             }
-#         """
-
+#     def nodes_validation(self, nodes) -> Nodes:
+#         """Validation function for nodes"""
 #         def _check_node_keys_type() -> bool:
 #             """Checks that type of 'Elizabeth' is Identifier"""
-#             if not all(isinstance(node, Identifier) for node in nodes):
-#                 raise Exception()
+#             return all(isinstance(node, Identifier) for node in nodes)
 
 #         def _check_node_values_type() -> bool:
 #             """Checks that type of {'age': 19, 'sex': False} is dict"""
-#             if not all(isinstance(values, Dict) for values in nodes.values()):
-#                 raise Exception()
+#             return all(isinstance(values, Dict) for values in nodes.values())
 
 #         if isinstance(nodes, Dict):
-#             _check_node_keys_type()
-#             _check_node_values_type()
+#             if not _check_node_keys_type():
+#                 raise TypeError()
+#             if not _check_node_values_type():
+#                 raise TypeError()
 #             return nodes
 #         if isinstance(nodes, Iterable):
-#             _check_node_keys_type()
+#             if not _check_node_keys_type():
+#                 raise TypeError()
 #             return {node: {} for node in nodes}
 #         raise TypeError()
 

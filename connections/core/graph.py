@@ -1,6 +1,6 @@
 """Graph implementation"""
 
-from typing import Iterable, Dict
+from typing import Iterable, Dict, Set
 from abc import ABC, abstractmethod
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
@@ -11,29 +11,12 @@ from connections.exceptions.object_already_exists import NodeAlreadyExistsExcept
 class Graph(ABC):
     """Graph implementation"""
 
-    def _nodes_validation(self, nodes) -> Nodes:
-        """Validation function for nodes"""
-        def _check_node_keys_type() -> bool:
-            """Checks that type of 'Elizabeth' is Identifier"""
-            if not all(isinstance(node, Identifier) for node in nodes):
-                raise Exception()
+    def __init__(self, nodes: Nodes = None, edges: Edges = None):
+        self.nodes = nodes
+        self.edges = edges
 
-        def _check_node_values_type() -> bool:
-            """Checks that type of {'age': 19, 'sex': False} is dict"""
-            if not all(isinstance(values, Dict) for values in nodes.values()):
-                raise Exception()
-
-        if isinstance(nodes, Dict):
-            _check_node_keys_type()
-            _check_node_values_type()
-            for identifier, values in nodes.items():
-                self.add_node(
-                    identifier=identifier, replace=False,
-                    clear_calculated_values=False, **values)
-        if isinstance(nodes, Iterable):
-            _check_node_keys_type()
-            return {node: {} for node in nodes}
-        raise TypeError()
+        self.clear_degree()
+        self.clear_neighbors()
 
     @property
     def nodes(self):
@@ -43,37 +26,64 @@ class Graph(ABC):
     @nodes.setter
     def nodes(self, new_nodes: Nodes):
         """Nodes setter"""
-        self.__nodes = new_nodes
+        self.__nodes = self._nodes_validation(new_nodes)
 
     @nodes.deleter
     def nodes(self):
         """Nodes deleter"""
-        raise Exception('LOL')
+        raise Exception('CanNotDeleteBasicElementsInGraphException')
 
-    def __init__(self, nodes: Nodes = None, edges: Edges = None):
-        self.__nodes = {}
-        self._nodes_validation(nodes)
-        self.__edges = edges or {}
+    def _nodes_validation(self, nodes) -> Nodes:
+        """Validation function for nodes"""
 
-        self.clear_degree()
-        self.clear_neighbors()
+        def check_nodes_identifier_type() -> bool:
+            """Checks that type of nodes identifier is Identifier"""
+            if not all(isinstance(node, Identifier) for node in nodes):
+                raise Exception('WrongNodesIdentifierTypeException')
 
-    # @property
-    # def edges(self):
-    #     """Edges getter"""
-    #     return self.__edges
+        def check_nodes_identifier_duplicate() -> bool:
+            """Checks that nodes identifier is not duplicate"""
+            if isinstance(nodes, Set):
+                return
+            if not len(nodes) == len(set(nodes)):
+                raise Exception('DuplicateNodesIdentifierException')
 
-    # @edges.setter
-    # def edges(self, new_edges: Edges):
-    #     """Edges setter"""
-    #     for (node_l, node_r), edge in new_edges.items():
-    #         for identifier, values in edge.items():
-    #             print(node_l, node_r, identifier, values)
-    #             self.add_edge(
-    #                 node_l=node_l, node_r=node_r, identifier=identifier,
-    #                 replace=False, add_non_existent_incident_nodes=True,
-    #                 clear_calculated_nodes_values=False, **values)
-    #     # self.__edges = new_edges
+        def check_nodes_value_type() -> bool:
+            """Checks that type of nodes value is dict"""
+            if not all(isinstance(values, Dict) for values in nodes.values()):
+                raise Exception('WrongNodesValueTypeException')
+
+        if nodes is None:
+            return {}
+
+        if isinstance(nodes, Dict):
+            _check_node_keys_type()
+            _check_node_values_type()
+            return nodes
+        if isinstance(nodes, Iterable):
+            _check_node_keys_type()
+            _check_node_keys_duplicates()
+            return {node: {} for node in nodes}
+        raise Exception('WrongNodesTypeException')
+
+    @property
+    def edges(self):
+        """Edges getter"""
+        return self.__edges
+
+    @edges.setter
+    def edges(self, new_edges: Edges):
+        """Edges setter"""
+        self.__edges = self._edges_validation(new_edges)
+
+    @edges.deleter
+    def edges(self):
+        """Edges deleter"""
+        raise Exception('CanNotDeleteBasicElementsInGraphException')
+
+    @abstractmethod
+    def _edges_validation(self, edges) -> Edges:
+        """Validation function for edges"""
 
     def __eq__(self, other):
         return type(self) is type(other) and \

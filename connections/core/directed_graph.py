@@ -1,12 +1,12 @@
 """DirectedGraph implementation"""
 
+from typing import Tuple, Iterable, Dict, Set
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
 from connections.core.graph import Graph
 from connections.exceptions.object_already_exists import (
-    NodeAlreadyExistsException, EdgeAlreadyExistsException
-)
+    NodeAlreadyExistsException, EdgeAlreadyExistsException)
 
 
 class DirectedGraph(Graph):
@@ -47,10 +47,31 @@ class DirectedGraph(Graph):
         }
     """
 
-    # edges = DirectedEdgesDescriptor(nodes)
-
     def __init__(self, nodes: Nodes = None, edges: Edges = None):
         super().__init__(nodes=nodes, edges=edges)
+
+    def _edges_validation(self, edges) -> Edges:
+        """Validation function for directed edges"""
+
+        def check_edges_key_type():
+            """Checks that type of edges key is tuple"""
+            if not all(isinstance(edge, Tuple) for edge in edges):
+                raise Exception('WrongEdgesKeyTypeException')
+
+        def check_nodes_identifier_type() -> bool:
+            pass
+
+        def check_edges_key_ken() -> bool:
+            pass
+
+        if edges is None:
+            return {}
+
+        if isinstance(edges, Dict):
+            return edges
+        if isinstance(edges, Iterable):
+            return {edge: {generate_identifier(): {}} for edge in edges}
+        raise Exception('WrongEdgesTypeException')
 
     def add_edge(
             self, node_l: Identifier, node_r: Identifier,

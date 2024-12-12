@@ -47,6 +47,10 @@ class UndirectedGraph(Graph):
     def __init__(self, nodes: Nodes = None, edges: Edges = None):
         super().__init__(nodes=nodes, edges=edges)
 
+    def _edges_validation(self, edges) -> Edges:
+        """Validation function for undirected edges"""
+        return {}
+
     def add_edge(
             self, node_l: Identifier, node_r: Identifier,
             identifier: Identifier = None, replace: bool = False,
