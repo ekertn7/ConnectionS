@@ -5,7 +5,9 @@ from abc import ABC, abstractmethod
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
-from connections.exceptions.object_already_exists import NodeAlreadyExistsException
+from connections.exceptions import (
+    NodeAlreadyExistsException, NodesValidationException,
+    CanNotDeleteBasicElementsInGraphException)
 
 
 class Graph(ABC):
@@ -31,40 +33,37 @@ class Graph(ABC):
     @nodes.deleter
     def nodes(self):
         """Nodes deleter"""
-        raise Exception('CanNotDeleteBasicElementsInGraphException')
+        raise CanNotDeleteBasicElementsInGraphException('nodes')
 
     def _nodes_validation(self, nodes) -> Nodes:
         """Validation function for nodes"""
 
-        def check_nodes_identifier_type() -> None:
-            """Checks that type of nodes identifier is Identifier"""
-            if not all(isinstance(node, Identifier) for node in nodes):
-                raise Exception('WrongNodesIdentifierTypeException')
+        def check_node_identifier_type() -> None:
+            """Checks that type of node identifier is Identifier"""
+            if not all(isinstance(identifier, Identifier) for identifier in nodes):
+                raise NodesValidationException(
+                    'Wrong type of node identifier! Node identifier type must be Identifier!')
 
-        def check_nodes_identifier_duplicate() -> None:
-            """Checks that nodes identifier is not duplicate"""
-            if isinstance(nodes, Set):
-                return
-            if not len(nodes) == len(set(nodes)):
-                raise Exception('DuplicateNodesIdentifierException')
-
-        def check_nodes_value_type() -> None:
-            """Checks that type of nodes value is dict"""
-            if not all(isinstance(values, Dict) for values in nodes.values()):
-                raise Exception('WrongNodesValueTypeException')
+        def check_node_attributes_type() -> None:
+            """Checks that type of node attributes is Dict"""
+            if not all(isinstance(attrs, Dict) for attrs in nodes.values()):
+                raise NodesValidationException(
+                    'Wrong type of node attributes! Node attributes type must be Dict!')
 
         if nodes is None:
             return {}
 
         if isinstance(nodes, Dict):
-            check_nodes_identifier_type()
-            check_nodes_value_type()
+            check_node_identifier_type()
+            check_node_attributes_type()
             return nodes
+
         if isinstance(nodes, Iterable):
-            check_nodes_identifier_type()
-            check_nodes_identifier_duplicate()
+            check_node_identifier_type()
             return {node: {} for node in nodes}
-        raise Exception('WrongNodesTypeException')
+
+        raise NodesValidationException(
+            'Wrong nodes type! Nodes type must be Dict or Iterable!')
 
     @property
     def edges(self):
@@ -79,7 +78,7 @@ class Graph(ABC):
     @edges.deleter
     def edges(self):
         """Edges deleter"""
-        raise Exception('CanNotDeleteBasicElementsInGraphException')
+        raise CanNotDeleteBasicElementsInGraphException('edges')
 
     @abstractmethod
     def _edges_validation(self, edges) -> Edges:

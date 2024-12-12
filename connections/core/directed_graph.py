@@ -5,8 +5,9 @@ from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
 from connections.core.graph import Graph
-from connections.exceptions.object_already_exists import (
-    NodeAlreadyExistsException, EdgeAlreadyExistsException)
+from connections.exceptions import (
+    NodeAlreadyExistsException, EdgeAlreadyExistsException,
+    EdgesValidationException)
 
 
 class DirectedGraph(Graph):
@@ -17,8 +18,8 @@ class DirectedGraph(Graph):
     --------------------
 
     Nodes representation is a dict with:
-        - keys: node identifier
-        - values: node attributes
+        - node identifier
+        - node attributes
 
     Nodes representation example:
         {
@@ -30,10 +31,12 @@ class DirectedGraph(Graph):
     --------------------
 
     Edges representation is a dict with:
-        - keys: a tuple with two nodes identifier
-        - values (same as in UndirectedGraph): a dict with:
-            - keys: edge identifier
-            - values: edge attributes
+        - couple - a tuple with:
+            - left node identifier
+            - right node identifier
+        - multiples (same as in UndirectedGraph) - a dict with:
+            - edge identifier
+            - edge attributes
 
     Edges representation example:
         {
@@ -53,26 +56,43 @@ class DirectedGraph(Graph):
     def _edges_validation(self, edges) -> Edges:
         """Validation function for directed edges"""
 
-        def check_edges_key_type() -> None:
-            """Checks that type of edges key is tuple"""
+        def check_couple_type() -> None:
+            """Checks that type of couple is Tuple"""
             if not all(isinstance(edge, Tuple) for edge in edges):
-                raise Exception('WrongEdgesKeyTypeException')
+                raise Exception('WrongEdgesNodesTypeException')
 
-        def check_edges_key_nodes_identifier_type() -> None:
+        def check_couple_len() -> None:
+            """Checks that length of couple == 2"""
+            if not all(len(edge) == 2 for edge in edges):
+                raise Exception('WrongEdgesKeyLengthException')
+
+        def check_node_identifier_type() -> None:
+            """Checks that type of node identifier in couple is Identifier"""
             if not all(
                     isinstance(node_l, Identifier) and isinstance(node_r, Identifier)
                     for (node_l, node_r) in edges):
                 raise Exception('WrongEdgesKeyNodesIdentifierTypeException')
 
-        def check_edges_key_len() -> None:
-            """Checks that length of edges key == 2"""
-            if not all(len(edge) == 2 for edge in edges):
-                raise Exception('WrongEdgesKeyLengthException')
-
-        def check_edges_value_type() -> None:
-            """Checks that type of edges value is dict"""
+        def check_multiples_type() -> None:
+            """Checks that type of multiple edges is Dict"""
             if not all(isinstance(values, Dict) for values in edges.values()):
                 raise Exception('WrongEdgesValueTypeException')
+
+        def check_edge_identifier_type():
+            """Checks that type of edge identifier is Identifier"""
+            for multiples in edges.values():
+                if not all(
+                        isinstance(edge_identifier, Identifier)
+                        for edge_identifier in multiples.keys()):
+                    raise Exception('WrongEdgeIdentifierTypeException')
+
+        def check_edge_attributes_type():
+            """Checks that type of edge attributes is Dict"""
+            for multiples in edges.values():
+                if not all(
+                        isinstance(edge_attributes, Dict)
+                        for edge_attributes in multiples.values()):
+                    raise Exception('WrongEdgeAttributesTypeException')
 
         def add_non_existent_incident_nodes() -> None:
             new_nodes = {node_l for (node_l, _) in edges} | {node_r for (_, node_r) in edges}
@@ -85,21 +105,24 @@ class DirectedGraph(Graph):
             return {}
 
         if isinstance(edges, Dict):
-            check_edges_key_type()
-            check_edges_key_len()
-            check_edges_key_nodes_identifier_type()
-            check_edges_value_type()
-
+            check_couple_type()
+            check_couple_len()
+            check_node_identifier_type()
+            check_multiples_type()
+            check_edge_identifier_type()
+            check_edge_attributes_type()
             add_non_existent_incident_nodes()
             return edges
-        if isinstance(edges, Iterable):
-            check_edges_key_type()
-            check_edges_key_len()
-            check_edges_key_nodes_identifier_type()
 
+        if isinstance(edges, Iterable):
+            check_couple_type()
+            check_couple_len()
+            check_node_identifier_type()
             add_non_existent_incident_nodes()
             return {edge: {generate_identifier(): {}} for edge in edges}
-        raise Exception('WrongEdgesTypeException')
+
+        raise EdgesValidationException(
+            'Wrong edges type! Edges type must be Dict or Iterable!')
 
     def add_edge(
             self, node_l: Identifier, node_r: Identifier,
