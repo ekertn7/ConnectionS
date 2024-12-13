@@ -92,13 +92,13 @@ class Graph(ABC):
 
         def check_couple_type() -> None:
             """Checks that type of couple is Tuple"""
-            if not all(isinstance(edge, Tuple) for edge in edges):
+            if not all(isinstance(couple, Tuple) for couple in edges):
                 raise EdgesValidationException(
                     'Wrong type of couple! Couple type must be Tuple!')
 
         def check_couple_len() -> None:
             """Checks that length of couple == 2"""
-            if not all(len(edge) == 2 for edge in edges):
+            if not all(len(couple) == 2 for couple in edges):
                 raise EdgesValidationException(
                     'Wrong length of couple! Couple length must be equal 2!')
 
@@ -112,9 +112,15 @@ class Graph(ABC):
 
         def check_multiples_type() -> None:
             """Checks that type of multiple edges is Dict"""
-            if not all(isinstance(values, Dict) for values in edges.values()):
+            if not all(isinstance(multiples, Dict) for multiples in edges.values()):
                 raise EdgesValidationException(
                     'Wrong type of multiple edges! Multiple edges type must be Dict!')
+
+        def check_multiples_len() -> None:
+            """Checks that length of multiple edges more than 0"""
+            if not all(len(multiples) > 0 for multiples in edges.values()):
+                raise EdgesValidationException(
+                    'Wrong length of multiple edges! Multiple edges length must be more than 0!')
 
         def check_edge_identifier_type():
             """Checks that type of edge identifier is Identifier"""
@@ -142,6 +148,7 @@ class Graph(ABC):
             check_couple_len()
             check_node_identifier_type()
             check_multiples_type()
+            check_multiples_len()
             check_edge_identifier_type()
             check_edge_attributes_type()
             for (node_l, node_r), multiples in edges.items():
@@ -214,14 +221,14 @@ class Graph(ABC):
                     'Wrong type of node identifier! Node identifier type must '
                     'be Identifier!')
 
-        # actions if node exists
+        # actions if (node exists)
         if self.nodes.get(identifier) is not None:
             if replace is False:
                 raise NodeAlreadyExistsException()
             if replace is True:
                 attributes['degree'] = self.nodes[identifier].get('degree')
                 attributes['neighbors'] = self.nodes[identifier].get('neighbors')
-        # actions if node not exists
+        # actions if (node not exists)
         self.nodes[identifier] = attributes
 
         return identifier
@@ -246,8 +253,7 @@ class Graph(ABC):
 
         # delete incident edges
         incident_edges = [
-            couple
-            for couple in self.edges.keys()
+            couple for couple in self.edges.keys()
             if identifier in couple]
         for couple in incident_edges:
             self.del_edge(*couple, recalculate_calculated_attributes=False)
@@ -419,9 +425,9 @@ class Graph(ABC):
             return (node_l in selected_nodes) or (node_r in selected_nodes)
 
         # fill subgraph by nodes and edges
-        for (node_l, node_r), edges in self.edges.items():
+        for (node_l, node_r), multiples in self.edges.items():
             if _condition(fullmatch, node_l, node_r):
-                for edge_identifier, edge_attributes in edges.items():
+                for edge_identifier, edge_attributes in multiples.items():
                     subgraph.add_edge(
                         node_l=node_l, node_r=node_r, identifier=edge_identifier,
                         add_non_existent_incident_nodes=False,
@@ -450,9 +456,9 @@ class Graph(ABC):
         for node in self.nodes.keys():
             self.nodes[node]['degree'] = 0
 
-        for (node_l, node_r), edges in self.edges.items():
-            self.nodes[node_l]['degree'] += len(edges)
-            self.nodes[node_r]['degree'] += len(edges)
+        for (node_l, node_r), multiples in self.edges.items():
+            self.nodes[node_l]['degree'] += len(multiples)
+            self.nodes[node_r]['degree'] += len(multiples)
 
     def clear_degree(self):
         """Set degree value to None for each node in graph"""
@@ -492,7 +498,7 @@ class Graph(ABC):
 
     def _is_multi(self):
         """Checks that graph is multigraph"""
-        return any(len(edges) > 1 for edges in self.edges.values())
+        return any(len(multiples) > 1 for multiples in self.edges.values())
 
     def describe(self):
         """Returns information about graph"""
