@@ -1,12 +1,13 @@
 """Graph implementation"""
 
-from typing import Iterable, Dict, Set
+from typing import Iterable, Dict, Tuple
 from abc import ABC, abstractmethod
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
 from connections.exceptions import (
-    NodeAlreadyExistsException, NodesValidationException,
+    NodeAlreadyExistsException, EdgeAlreadyExistsException,
+    NodesValidationException, EdgesValidationException,
     CanNotDeleteBasicElementsInGraphException)
 
 
@@ -17,8 +18,11 @@ class Graph(ABC):
         self.nodes = nodes
         self.edges = edges
 
-        self.clear_degree()
-        self.clear_neighbors()
+        self.calc_degree()
+        self.calc_neighbors()
+
+    def __repr__(self):
+        return str(self.__class__)
 
     @property
     def nodes(self):
@@ -28,7 +32,8 @@ class Graph(ABC):
     @nodes.setter
     def nodes(self, new_nodes: Nodes):
         """Nodes setter"""
-        self.__nodes = self._nodes_validation(new_nodes)
+        self.__nodes = {}
+        self._nodes_validation(new_nodes)
 
     @nodes.deleter
     def nodes(self):
@@ -51,19 +56,20 @@ class Graph(ABC):
                     'Wrong type of node attributes! Node attributes type must be Dict!')
 
         if nodes is None:
-            return {}
+            return
 
         if isinstance(nodes, Dict):
             check_node_identifier_type()
             check_node_attributes_type()
-            return nodes
-
-        if isinstance(nodes, Iterable):
+            for identifier, attributes in nodes.items():
+                self.add_node(identifier=identifier, **attributes)
+        elif isinstance(nodes, Iterable):
             check_node_identifier_type()
-            return {node: {} for node in nodes}
-
-        raise NodesValidationException(
-            'Wrong nodes type! Nodes type must be Dict or Iterable!')
+            for identifier in nodes:
+                self.add_node(identifier=identifier, replace=True)
+        else:
+            raise NodesValidationException(
+                'Wrong nodes type! Nodes type must be Dict or Iterable!')
 
     @property
     def edges(self):
@@ -73,16 +79,100 @@ class Graph(ABC):
     @edges.setter
     def edges(self, new_edges: Edges):
         """Edges setter"""
-        self.__edges = self._edges_validation(new_edges)
+        self.__edges = {}
+        self._edges_validation(new_edges)
 
     @edges.deleter
     def edges(self):
         """Edges deleter"""
         raise CanNotDeleteBasicElementsInGraphException('edges')
 
-    @abstractmethod
     def _edges_validation(self, edges) -> Edges:
-        """Validation function for edges"""
+        """Validation function for directed edges"""
+
+        def check_couple_type() -> None:
+            """Checks that type of couple is Tuple"""
+            if not all(isinstance(edge, Tuple) for edge in edges):
+                raise EdgesValidationException(
+                    'Wrong type of couple! Couple type must be Tuple!')
+
+        def check_couple_len() -> None:
+            """Checks that length of couple == 2"""
+            if not all(len(edge) == 2 for edge in edges):
+                raise EdgesValidationException(
+                    'Wrong length of couple! Couple length must be equal 2!')
+
+        def check_node_identifier_type() -> None:
+            """Checks that type of node identifier in couple is Identifier"""
+            if not all(
+                    isinstance(node_l, Identifier) and isinstance(node_r, Identifier)
+                    for (node_l, node_r) in edges):
+                raise EdgesValidationException(
+                    'Wrong type of node identifier! Node identifier type must be Identifier!')
+
+        def check_multiples_type() -> None:
+            """Checks that type of multiple edges is Dict"""
+            if not all(isinstance(values, Dict) for values in edges.values()):
+                raise EdgesValidationException(
+                    'Wrong type of multiple edges! Multiple edges type must be Dict!')
+
+        def check_edge_identifier_type():
+            """Checks that type of edge identifier is Identifier"""
+            for multiples in edges.values():
+                if not all(
+                        isinstance(edge_identifier, Identifier)
+                        for edge_identifier in multiples.keys()):
+                    raise EdgesValidationException(
+                        'Wrong type of edge identifier! Edge identifier type must be Identifier!')
+
+        def check_edge_attributes_type():
+            """Checks that type of edge attributes is Dict"""
+            for multiples in edges.values():
+                if not all(
+                        isinstance(edge_attributes, Dict)
+                        for edge_attributes in multiples.values()):
+                    raise EdgesValidationException(
+                        'Wrong type of edge attributes! Edge attributes type must be Dict!')
+
+        if edges is None:
+            return
+
+        if isinstance(edges, Dict):
+            check_couple_type()
+            check_couple_len()
+            check_node_identifier_type()
+            check_multiples_type()
+            check_edge_identifier_type()
+            check_edge_attributes_type()
+            for (node_l, node_r), multiples in edges.items():
+                if len(multiples) == 0:
+                    self.add_edge(
+                        node_l=node_l, node_r=node_r,
+                        add_non_existent_incident_nodes=True,
+                        recalculate_calculated_attributes=False)
+                else:
+                    for identifier, attributes in multiples.items():
+                        try:
+                            self.add_edge(
+                                node_l=node_l, node_r=node_r, identifier=identifier,
+                                add_non_existent_incident_nodes=True,
+                                recalculate_calculated_attributes=False, **attributes)
+                        except EdgeAlreadyExistsException as exc:
+                            raise EdgesValidationException(
+                                f'Duplication in edge identifiers incident to nodes {node_l} and {node_r}! '
+                                f'Please, resolve conflict and try again!') from exc
+        elif isinstance(edges, Iterable):
+            check_couple_type()
+            check_couple_len()
+            check_node_identifier_type()
+            for (node_l, node_r) in edges:
+                self.add_edge(
+                    node_l=node_l, node_r=node_r,
+                    add_non_existent_incident_nodes=True,
+                    recalculate_calculated_attributes=False)
+        else:
+            raise EdgesValidationException(
+                'Wrong edges type! Edges type must be Dict or Iterable!')
 
     def __eq__(self, other):
         return type(self) is type(other) and \
@@ -94,94 +184,206 @@ class Graph(ABC):
         return len(self.nodes)
 
     def add_node(
-            self, identifier: Identifier = None, replace: bool = False,
-            clear_calculated_values: bool = True, **kwargs) -> Identifier:
+        self, identifier: Identifier = None, replace: bool = False,
+        **attributes) -> Identifier:
         """Adds node to the graph
 
         Parameters
         ----------
         identifier, optional
             Node identifier
-                - None (default): an automatically generated identifier (UUID) is assigned
-                - ...: selected identifier is assigned
+                - None (default): assigned an automatically generated identifier (UUID)
+                - ...: assigned selected identifier
         replace, optional
             Replace existing node
                 - False (default): raise NodeAlreadyExistsException if node exists
                 - True: replace existing node by new
-        clear_calculated_nodes_values, optional
-            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
-                - True (deafult): clear calculated nodes values (worst performance)
-                    * use it when adding a small number of nodes
-                - False: do nothing (best performance)
-                    * use it when adding a large number of nodes,
-                      then recalculate calculated values
+        attributes, optional
+            Node attributes, calculated attributes added automatically with None values
 
         Returns
         -------
             Node identifier
         """
+        # validate identifier
         if identifier is None:
             identifier = generate_identifier()
         else:
             if not isinstance(identifier, Identifier):
-                raise TypeError()
+                raise NodesValidationException(
+                    'Wrong type of node identifier! Node identifier type must '
+                    'be Identifier!')
 
-        if replace is False and self.nodes.get(identifier) is not None:
-            raise NodeAlreadyExistsException()
-
-        self.nodes[identifier] = kwargs
-
-        if clear_calculated_values is True:
-            self.clear_degree()
-            self.clear_neighbors()
+        # actions if node exists
+        if self.nodes.get(identifier) is not None:
+            if replace is False:
+                raise NodeAlreadyExistsException()
+            if replace is True:
+                attributes['degree'] = self.nodes[identifier].get('degree')
+                attributes['neighbors'] = self.nodes[identifier].get('neighbors')
+        # actions if node not exists
+        self.nodes[identifier] = attributes
 
         return identifier
 
     def del_node(
             self, identifier: Identifier,
-            clear_calculated_values: bool = True) -> None:
+            recalculate_calculated_attributes: bool = True) -> None:
         """Removes node from the graph
 
         Parameters
         ----------
         identifier
             Node identifier
-        clear_calculated_nodes_values, optional
-            Clear nodes values, that calculated by functions: calc_degree, calc_neighbors
-                - True (deafult): clear calculated nodes values (worst performance)
+        recalculate_calculated_attributes, optional
+            Recalculate nodes attributes, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): recalculate calculated nodes attributes (worst performance)
                     * use it when removing a small number of nodes
                 - False: do nothing (best performance)
                     * use it when removing a large number of nodes,
-                      then recalculate calculated values
+                      then recalculate calculated attributes
         """
+
+        # delete incident edges
+        incident_edges = [
+            couple
+            for couple in self.edges.keys()
+            if identifier in couple]
+        for couple in incident_edges:
+            self.del_edge(*couple, recalculate_calculated_attributes=False)
+
+        # delete node
         del self.nodes[identifier]
 
-        if clear_calculated_values is True:
-            self.clear_degree()
-            self.clear_neighbors()
+        # recalculate calculated attributes
+        if recalculate_calculated_attributes is True:
+            self.calc_degree()
+            self.calc_neighbors()
 
     def clear_nodes(self) -> None:
         """Removes all nodes from the graph"""
         self.nodes = {}
 
     @abstractmethod
+    def _couple_representation(
+            self, couple: Tuple[Identifier, Identifier]
+            ) -> Tuple[Identifier, Identifier]:
+        """Couple representation for different graph types"""
+
     def add_edge(
             self, node_l: Identifier, node_r: Identifier,
             identifier: Identifier = None, replace: bool = False,
             add_non_existent_incident_nodes: bool = True,
-            clear_calculated_nodes_values: bool = True,
-            **kwargs) -> Identifier:
-        """Adds an edge and its incident nodes to the graph"""
+            recalculate_calculated_attributes: bool = True,
+            **attributes) -> Identifier:
+        """Adds an edge and its incident nodes to the graph
 
-    @abstractmethod
+        Parameters
+        ----------
+        node_l
+            Left node identifier
+        node_r
+            Right node identifier
+        identifier, optional
+            Edge identifier
+                - None (default): an automatically generated identifier (UUID) is assigned
+                - ...: selected identifier is assigned
+        replace, optional
+            Replace existing edge
+                - True: replace existing edge by new
+                - False (default): raise EdgeAlreadyExistsException if edge exists
+        add_non_existent_incident_nodes, optional
+            Add non-existent incident nodes
+                - True (default): add non-existent incident nodes to the graph
+                - False: do nothing
+        recalculate_calculated_attributes, optional
+            Recalculate nodes attributes, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): recalculate calculated nodes attributes (worst performance)
+                    * use it when adding a small number of edges
+                - False: do nothing (best performance)
+                    * use it when adding a large number of edges,
+                      then recalculate calculated attributes
+
+        Returns
+        -------
+            Edge identifier
+        """
+        # couple representation
+        couple = self._couple_representation((node_l, node_r))
+
+        # validate identifier
+        if identifier is None:
+            identifier = generate_identifier()
+
+        # actions if (edge exists) and (replace is True)
+        if self.edges.get(couple) is not None and \
+                self.edges.get(couple).get(identifier) is not None:
+            if replace is False:
+                raise EdgeAlreadyExistsException()
+        # actions if (edge not exists) or (edge exists and replace is True)
+        self.edges[couple] = self.edges.get(couple) or {}
+        self.edges[couple][identifier] = attributes
+
+        # add non-existent incident nodes
+        if add_non_existent_incident_nodes is True:
+            try:
+                self.add_node(node_l, replace=False)
+            except NodeAlreadyExistsException:
+                pass
+            try:
+                self.add_node(node_r, replace=False)
+            except NodeAlreadyExistsException:
+                pass
+
+        # recalculate calculated values
+        if recalculate_calculated_attributes is True:
+            self.calc_degree()
+            self.calc_neighbors()
+
+        return identifier
+
     def del_edge(
             self, node_l: Identifier, node_r: Identifier,
-            identifier: Identifier,
-            clear_calculated_nodes_values: bool = True) -> None:
-        """Removes an edge from the graph"""
+            identifier: Identifier = None,
+            recalculate_calculated_attributes: bool = True) -> None:
+        """Removes an edge from the graph
+
+        Parameters
+        ----------
+        node_l
+            Left node identifier
+        node_r
+            Right node identifier
+        identifier
+            Edge identifier
+                - None (default): removes all edges incident with source and target nodes
+                - ...: removes selected edge
+        recalculate_calculated_attributes, optional
+            Recalculate nodes attributes, that calculated by functions: calc_degree, calc_neighbors
+                - True (deafult): recalculate calculated nodes attributes (worst performance)
+                    * use it when removing a small number of edges
+                - False: do nothing (best performance)
+                    * use it when removing a large number of edges,
+                      then recalculate calculated attributes
+        """
+
+        # couple representation
+        couple = self._couple_representation((node_l, node_r))
+
+        # delete edges
+        if identifier is None:
+            del self.edges[couple]
+        else:
+            del self.edges[couple][identifier]
+
+        # clear calculated attributes
+        if recalculate_calculated_attributes is True:
+            self.calc_degree()
+            self.calc_neighbors()
 
     def clear_edges(self) -> None:
         """Removes all edges from the graph"""
+
         self.edges = {}
 
         self.clear_degree()
@@ -204,36 +406,42 @@ class Graph(ABC):
         -------
             Subgraph
         """
+
+        # intersection of selected nodes and existing nodes
         selected_nodes = set(selected_nodes) & set(self.nodes.keys())
 
-        subgraph = self.__class__(
-            nodes={node_id: self.nodes[node_id] for node_id in selected_nodes},
-            edges=None,
-        )
+        # initialise subgraph
+        subgraph = self.__class__()
 
         def _condition(fullmatch, node_l, node_r):
             if fullmatch is True:
                 return (node_l in selected_nodes) and (node_r in selected_nodes)
             return (node_l in selected_nodes) or (node_r in selected_nodes)
 
+        # fill subgraph by nodes and edges
         for (node_l, node_r), edges in self.edges.items():
             if _condition(fullmatch, node_l, node_r):
-                for edge_id, edge_kwargs in edges.items():
+                for edge_identifier, edge_attributes in edges.items():
                     subgraph.add_edge(
-                        node_l=node_l, node_r=node_r, identifier=edge_id,
+                        node_l=node_l, node_r=node_r, identifier=edge_identifier,
                         add_non_existent_incident_nodes=False,
-                        clear_calculated_nodes_values=False, **edge_kwargs)
-                    subgraph.add_node(
-                        identifier=node_l, replace=True, clear_calculated_values=False,
-                        **self.nodes[node_l])
-                    subgraph.add_node(
-                        identifier=node_r, replace=True, clear_calculated_values=False,
-                        **self.nodes[node_r])
+                        recalculate_calculated_attributes=False, **edge_attributes)
+                    try:
+                        subgraph.add_node(
+                            identifier=node_l, replace=False,
+                            recalculate_calculated_attributes=False, **self.nodes[node_l])
+                    except NodeAlreadyExistsException:
+                        pass
+                    try:
+                        subgraph.add_node(
+                            identifier=node_r, replace=False,
+                            recalculate_calculated_attributes=False, **self.nodes[node_r])
+                    except NodeAlreadyExistsException:
+                        pass
 
-        if any(value.get('degree') is not None for value in subgraph.nodes.values()):
-            subgraph.calc_degree()
-        if any(value.get('neighbors') is not None for value in subgraph.nodes.values()):
-            subgraph.calc_neighbors()
+        # recalculate calculated attributes
+        subgraph.calc_degree()
+        subgraph.calc_neighbors()
 
         return subgraph
 
@@ -266,7 +474,7 @@ class Graph(ABC):
             if node_l == node_r:
                 yield (node_l, node_r)
 
-    def is_complete(self):
+    def _is_complete(self):
         """Checks that graph is complete"""
         edges_lenght = len({
             (node_l, node_r) for (node_l, node_r) in self.edges.keys()
@@ -274,9 +482,17 @@ class Graph(ABC):
         max_edges_legth = (len(self.nodes) * (len(self.nodes) - 1)) / 2
         return edges_lenght == max_edges_legth
 
-    def is_connected(self):
+    def _is_connected(self):
         """Checks that graph is conncted"""
         return NotImplemented
+
+    def _is_pseudo(self):
+        """Checks that graph is pseudograph"""
+        return any(self.find_loops())
+
+    def _is_multi(self):
+        """Checks that graph is multigraph"""
+        return any(len(edges) > 1 for edges in self.edges.values())
 
     def describe(self):
         """Returns information about graph"""
@@ -286,8 +502,8 @@ class Graph(ABC):
             'type': self.__class__,
             'number_of_nodes': len(self.nodes),
             'number_of_edges': len(self.edges),
-            'multi_graph': any(len(values) > 1 for values in self.edges.values()),
-            'pseudo_graph': any(self.find_loops()),
-            'connected_graph': self.is_connected(),
-            'complete_graph': self.is_complete(),
+            'multi_graph': self._is_multi(),
+            'pseudo_graph': self._is_pseudo(),
+            'connected_graph': self._is_connected(),
+            'complete_graph': self._is_complete(),
         }
