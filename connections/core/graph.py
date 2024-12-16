@@ -36,7 +36,31 @@ class Graph(ABC):
         self.calc_neighbors()
 
     def __repr__(self):
-        return str(self.__class__)
+        description = self.describe()
+
+        graph_type = description['type']
+        if description['multi_graph'] is True:
+            graph_type = f'Multi {graph_type}'
+        if description['pseudo_graph'] is True:
+            graph_type = f'Pseudo {graph_type}'
+        if description['complete_graph'] is True:
+            graph_type = f'Complete {graph_type}'
+
+        nodes_number = description['number_of_nodes']
+        nodes_ending = 'node'
+        if nodes_number > 1:
+            nodes_ending += 's'
+
+        edges_number = description['number_of_edges']
+        edges_ending = 'edge'
+        if edges_number > 1:
+            edges_ending += 's'
+
+        message = (
+            f'{graph_type} with {nodes_number} {nodes_ending} and '
+            f'{edges_number} {edges_ending}')
+
+        return message
 
     @property
     def nodes(self):
@@ -133,7 +157,7 @@ class Graph(ABC):
             for multiples in edges.values():
                 if not all(
                         isinstance(edge_identifier, Identifier)
-                        for edge_identifier in multiples.keys()):
+                        for edge_identifier in multiples):
                     raise WrongTypeOfEdgeIdentifierException()
 
         def check_edge_attributes_type():
@@ -168,9 +192,9 @@ class Graph(ABC):
                                 node_l=node_l, node_r=node_r, identifier=identifier,
                                 add_non_existent_incident_nodes=True,
                                 recalculate_calculated_attributes=False, **attributes)
-                        except EdgeAlreadyExistsException as exc:
+                        except EdgeAlreadyExistsException:
                             raise DuplicationInEdgeIdentifiersException(
-                                node_l=node_l, node_r=node_r) from exc
+                                node_l=node_l, node_r=node_r) from None
         elif isinstance(edges, Iterable):
             check_couple_type()
             check_couple_len()
@@ -237,7 +261,7 @@ class Graph(ABC):
     def del_node(
             self, identifier: Identifier,
             recalculate_calculated_attributes: bool = True) -> None:
-        """Removes node from the graph
+        """Removes node and its incident edges from the graph
 
         Parameters
         ----------
@@ -254,8 +278,7 @@ class Graph(ABC):
 
         # delete incident edges
         incident_edges = [
-            couple for couple in self.edges.keys()
-            if identifier in couple]
+            couple for couple in self.edges if identifier in couple]
         for couple in incident_edges:
             self.del_edge(*couple, recalculate_calculated_attributes=False)
 
@@ -315,6 +338,7 @@ class Graph(ABC):
         -------
             Edge identifier
         """
+
         # couple representation
         couple = self._couple_representation((node_l, node_r))
 
@@ -415,7 +439,7 @@ class Graph(ABC):
         """
 
         # intersection of selected nodes and existing nodes
-        selected_nodes = set(selected_nodes) & set(self.nodes.keys())
+        selected_nodes = set(selected_nodes) & set(self.nodes)
 
         # initialise subgraph
         subgraph = self.__class__()
@@ -452,39 +476,45 @@ class Graph(ABC):
 
         return subgraph
 
-    def calc_degree(self):
-        """Calculate degree for each node in graph"""
-        for node in self.nodes.keys():
+    def clear_degree(self):
+        """Set degree value to 0 for each node in graph"""
+        for node in self.nodes:
             self.nodes[node]['degree'] = 0
+
+    def calc_degree(self):
+        """Calculates degree for each node in graph"""
+        self.clear_degree()
 
         for (node_l, node_r), multiples in self.edges.items():
             self.nodes[node_l]['degree'] += len(multiples)
             self.nodes[node_r]['degree'] += len(multiples)
 
-    def clear_degree(self):
-        """Set degree value to None for each node in graph"""
-        for node in self.nodes.keys():
-            self.nodes[node]['degree'] = None
+    def clear_neighbors(self):
+        """Set neighbors value to empty set for each node in graph"""
+        for node in self.nodes:
+            self.nodes[node]['neighbors'] = set()
 
     @abstractmethod
     def calc_neighbors(self):
         """Finds neighbors for each node in graph"""
 
-    def clear_neighbors(self):
-        """Set neighbors value to None for each node in graph"""
-        for node in self.nodes.keys():
-            self.nodes[node]['neighbors'] = None
-
     def find_loops(self):
         """Finds loops in a graph (when an edge incident to one node)"""
-        for (node_l, node_r) in self.edges.keys():
+        for (node_l, node_r) in self.edges:
             if node_l == node_r:
                 yield (node_l, node_r)
 
     def _is_complete(self):
-        """Checks that graph is complete"""
+        """Checks that graph is complete
+
+        Max edges lenght in cpmplete graph = (nodes count * nodes count - 1) / 2
+
+        * couple representation is the same for different graph types because
+          the main goal in this calculation is to remove duplicates
+        """
         edges_lenght = len({
-            (node_l, node_r) for (node_l, node_r) in self.edges.keys()
+            tuple(sorted((node_l, node_r)))
+            for (node_l, node_r) in self.edges
             if node_l != node_r})
         max_edges_legth = (len(self.nodes) * (len(self.nodes) - 1)) / 2
         return edges_lenght == max_edges_legth
@@ -501,16 +531,6 @@ class Graph(ABC):
         """Checks that graph is multigraph"""
         return any(len(multiples) > 1 for multiples in self.edges.values())
 
+    @abstractmethod
     def describe(self):
         """Returns information about graph"""
-        self.calc_degree()
-        self.calc_neighbors()
-        return {
-            'type': self.__class__,
-            'number_of_nodes': len(self.nodes),
-            'number_of_edges': len(self.edges),
-            'multi_graph': self._is_multi(),
-            'pseudo_graph': self._is_pseudo(),
-            'connected_graph': self._is_connected(),
-            'complete_graph': self._is_complete(),
-        }

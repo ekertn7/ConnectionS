@@ -58,8 +58,21 @@ class DirectedGraph(Graph):
 
     def calc_neighbors(self):
         """Finds neighbors for each node in graph"""
-        for node in self.nodes.keys():
-            self.nodes[node]['neighbors'] = set()
+        self.clear_neighbors()
 
-        for (node_l, node_r) in self.edges.keys():
+        for (node_l, node_r) in self.edges:
             self.nodes[node_l]['neighbors'].add(node_r)
+
+    def describe(self):
+        """Returns information about directed graph"""
+        self.calc_degree()
+        self.calc_neighbors()
+        return {
+            'type': 'Directed Graph',
+            'number_of_nodes': len(self.nodes),
+            'number_of_edges': len(self.edges),
+            'multi_graph': self._is_multi(),
+            'pseudo_graph': self._is_pseudo(),
+            # 'connected_graph': self._is_connected(),
+            'complete_graph': self._is_complete(),
+        }
