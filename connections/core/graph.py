@@ -5,10 +5,24 @@ from abc import ABC, abstractmethod
 from connections.core.identifier import Identifier, generate_identifier
 from connections.core.nodes import Nodes
 from connections.core.edges import Edges
-from connections.exceptions import (
-    NodeAlreadyExistsException, EdgeAlreadyExistsException,
-    NodesValidationException, EdgesValidationException,
+from connections.exceptions.cant_delete_basic_elements import (
     CanNotDeleteBasicElementsInGraphException)
+from connections.exceptions.object_already_exists import (
+    NodeAlreadyExistsException,
+    EdgeAlreadyExistsException)
+from connections.exceptions.validation import (
+    WrongTypeOfNodesException,
+    WrongTypeOfNodeIdentifierException,
+    WrongTypeOfNodeAttributesException,
+    WrongTypeOfEdgesException,
+    WrongTypeOfCoupleException,
+    WrongLengthOfCoupleException,
+    WrongTypeOfNodeIdentifierInCoupleException,
+    WrongTypeOfMultipleEdgesException,
+    WrongLengthOfMultipleEdgesException,
+    WrongTypeOfEdgeIdentifierException,
+    WrongTypeOfEdgeAttributesException,
+    DuplicationInEdgeIdentifiersException)
 
 
 class Graph(ABC):
@@ -46,14 +60,12 @@ class Graph(ABC):
         def check_node_identifier_type() -> None:
             """Checks that type of node identifier is Identifier"""
             if not all(isinstance(identifier, Identifier) for identifier in nodes):
-                raise NodesValidationException(
-                    'Wrong type of node identifier! Node identifier type must be Identifier!')
+                raise WrongTypeOfNodeIdentifierException()
 
         def check_node_attributes_type() -> None:
             """Checks that type of node attributes is Dict"""
             if not all(isinstance(attrs, Dict) for attrs in nodes.values()):
-                raise NodesValidationException(
-                    'Wrong type of node attributes! Node attributes type must be Dict!')
+                raise WrongTypeOfNodeAttributesException()
 
         if nodes is None:
             return
@@ -68,8 +80,7 @@ class Graph(ABC):
             for identifier in nodes:
                 self.add_node(identifier=identifier, replace=True)
         else:
-            raise NodesValidationException(
-                'Wrong nodes type! Nodes type must be Dict or Iterable!')
+            raise WrongTypeOfNodesException()
 
     @property
     def edges(self):
@@ -93,34 +104,29 @@ class Graph(ABC):
         def check_couple_type() -> None:
             """Checks that type of couple is Tuple"""
             if not all(isinstance(couple, Tuple) for couple in edges):
-                raise EdgesValidationException(
-                    'Wrong type of couple! Couple type must be Tuple!')
+                raise WrongTypeOfCoupleException()
 
         def check_couple_len() -> None:
             """Checks that length of couple == 2"""
             if not all(len(couple) == 2 for couple in edges):
-                raise EdgesValidationException(
-                    'Wrong length of couple! Couple length must be equal 2!')
+                raise WrongLengthOfCoupleException()
 
         def check_node_identifier_type() -> None:
             """Checks that type of node identifier in couple is Identifier"""
             if not all(
                     isinstance(node_l, Identifier) and isinstance(node_r, Identifier)
                     for (node_l, node_r) in edges):
-                raise EdgesValidationException(
-                    'Wrong type of node identifier! Node identifier type must be Identifier!')
+                raise WrongTypeOfNodeIdentifierInCoupleException()
 
         def check_multiples_type() -> None:
             """Checks that type of multiple edges is Dict"""
             if not all(isinstance(multiples, Dict) for multiples in edges.values()):
-                raise EdgesValidationException(
-                    'Wrong type of multiple edges! Multiple edges type must be Dict!')
+                raise WrongTypeOfMultipleEdgesException()
 
         def check_multiples_len() -> None:
             """Checks that length of multiple edges more than 0"""
             if not all(len(multiples) > 0 for multiples in edges.values()):
-                raise EdgesValidationException(
-                    'Wrong length of multiple edges! Multiple edges length must be more than 0!')
+                raise WrongLengthOfMultipleEdgesException()
 
         def check_edge_identifier_type():
             """Checks that type of edge identifier is Identifier"""
@@ -128,8 +134,7 @@ class Graph(ABC):
                 if not all(
                         isinstance(edge_identifier, Identifier)
                         for edge_identifier in multiples.keys()):
-                    raise EdgesValidationException(
-                        'Wrong type of edge identifier! Edge identifier type must be Identifier!')
+                    raise WrongTypeOfEdgeIdentifierException()
 
         def check_edge_attributes_type():
             """Checks that type of edge attributes is Dict"""
@@ -137,8 +142,7 @@ class Graph(ABC):
                 if not all(
                         isinstance(edge_attributes, Dict)
                         for edge_attributes in multiples.values()):
-                    raise EdgesValidationException(
-                        'Wrong type of edge attributes! Edge attributes type must be Dict!')
+                    raise WrongTypeOfEdgeAttributesException()
 
         if edges is None:
             return
@@ -165,9 +169,8 @@ class Graph(ABC):
                                 add_non_existent_incident_nodes=True,
                                 recalculate_calculated_attributes=False, **attributes)
                         except EdgeAlreadyExistsException as exc:
-                            raise EdgesValidationException(
-                                f'Duplication in edge identifiers incident to nodes {node_l} and {node_r}! '
-                                f'Please, resolve conflict and try again!') from exc
+                            raise DuplicationInEdgeIdentifiersException(
+                                node_l=node_l, node_r=node_r) from exc
         elif isinstance(edges, Iterable):
             check_couple_type()
             check_couple_len()
@@ -178,8 +181,7 @@ class Graph(ABC):
                     add_non_existent_incident_nodes=True,
                     recalculate_calculated_attributes=False)
         else:
-            raise EdgesValidationException(
-                'Wrong edges type! Edges type must be Dict or Iterable!')
+            raise WrongTypeOfEdgesException()
 
     def __eq__(self, other):
         return type(self) is type(other) and \
@@ -212,14 +214,13 @@ class Graph(ABC):
         -------
             Node identifier
         """
+
         # validate identifier
         if identifier is None:
             identifier = generate_identifier()
         else:
             if not isinstance(identifier, Identifier):
-                raise NodesValidationException(
-                    'Wrong type of node identifier! Node identifier type must '
-                    'be Identifier!')
+                raise WrongTypeOfNodeIdentifierException()
 
         # actions if (node exists)
         if self.nodes.get(identifier) is not None:
